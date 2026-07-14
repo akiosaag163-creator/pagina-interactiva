@@ -1,53 +1,48 @@
 import streamlit as st
 import google.generativeai as genai
 
-st.set_page_config(page_title="Mentor Estelar 🚀", page_icon="🎓", layout="centered")
+st.set_page_config(page_title="Mentor Estelar 🚀", page_icon="🎓")
+st.title("🎓 Mentor Estelar: Historias y Desafíos")
 
-st.title("🎓 ¡Bienvenido a Mentor Estelar! 🚀")
+# Configuración API
+api_key = st.secrets["GEMINI_API_KEY"]
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel('gemini-3.5-flash')
 
-# Configuración de la API
-try:
-    api_key = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-3.5-flash')
-except Exception as e:
-    st.error("Configuración de API no encontrada. Revisa tus Secrets.")
-    st.stop()
-
-# Inicializar estados
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Mostrar historial de mensajes
+# Mostrar historial
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Input del usuario
-if prompt := st.chat_input("¿Qué quieres aprender hoy? (ej: 'Historia de la fotosíntesis' o 'Quiz de biología')"):
+# Input usuario
+if prompt := st.chat_input("Escribe 'Historia de...' o 'Quiz de...'"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner('El mentor está preparando tu lección...'):
-            # Lógica diferenciada por tipo de solicitud
-            if "quiz" in prompt.lower():
-                instruccion = f"Eres un profesor experto. Haz 3 preguntas de evaluación directa (sin opciones) sobre: {prompt}. No incluyas historias, solo las preguntas."
-            else:
-                instruccion = f"""Eres un profesor experto. Crea una historia interactiva sobre {prompt}. 
-                Al final, presenta dos opciones claras etiquetadas como:
-                [Opción A] y [Opción B]."""
-            
-            response = model.generate_content(instruccion)
-            full_text = response.text
-            st.markdown(full_text)
-            st.session_state.messages.append({"role": "assistant", "content": full_text})
-            
-            # Botones para historias interactivas
-            if "historia" in prompt.lower() or ("Opción A" in full_text and "Opción B" in full_text):
-                col1, col2 = st.columns(2)
-                if col1.button("Elegir Opción A"):
-                    st.write("Has elegido la Opción A. ¡El mentor procesará tu elección en la siguiente pregunta!")
-                if col2.button("Elegir Opción B"):
-                    st.write("Has elegido la Opción B. ¡El mentor procesará tu elección en la siguiente pregunta!")
+        # Instrucción diferenciada
+        if "quiz" in prompt.lower():
+            instruccion = f"""Eres un profesor experto. Crea un quiz de 3 preguntas sobre {prompt}. 
+            Cada pregunta debe tener 4 opciones (A, B, C, D). 
+            Al final, incluye una lista de respuestas correctas oculta o separada."""
+        else:
+            instruccion = f"""Eres un narrador experto. Crea una historia interactiva fascinante sobre {prompt}.
+            La historia debe tener una trama que cambie según la elección. 
+            Termina obligatoriamente con dos opciones: [Opción A] y [Opción B]."""
+        
+        response = model.generate_content(instruccion)
+        respuesta_ia = response.text
+        st.markdown(respuesta_ia)
+        st.session_state.messages.append({"role": "assistant", "content": respuesta_ia})
+
+        # Mostrar botones solo si la IA generó opciones
+        if "[Opción A]" in respuesta_ia or "A)" in respuesta_ia:
+            col1, col2 = st.columns(2)
+            if col1.button("Elegir Opción A"):
+                st.info("Has seleccionado la A. Continúa la aventura...")
+            if col2.button("Elegir Opción B"):
+                st.info("Has seleccionado la B. La historia toma un nuevo rumbo...")
