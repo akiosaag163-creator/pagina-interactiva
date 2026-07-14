@@ -4,12 +4,22 @@ import google.generativeai as genai
 st.set_page_config(page_title="Mentor Científico", page_icon="🎓")
 st.title("🎓 Mentor de Ciencias y Matemáticas")
 
-# Configuración con el modelo estándar actual
+# Función para encontrar un modelo que funcione
+def get_model():
+    # Listar modelos disponibles
+    models = genai.list_models()
+    for m in models:
+        if 'generateContent' in m.supported_generation_methods:
+            return genai.GenerativeModel(m.name)
+    return None
+
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
-    # USAMOS EL MODELO GEMINI-1.5-FLASH, ES EL MÁS ESTABLE
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = get_model()
+    if model is None:
+        st.error("No se encontró ningún modelo compatible en tu cuenta.")
+        st.stop()
 except Exception as e:
     st.error(f"Error de configuración: {e}")
     st.stop()
@@ -28,7 +38,6 @@ if prompt := st.chat_input("Escribe tu tema:"):
 
     with st.chat_message("assistant"):
         try:
-            # Instrucción clara para el modelo
             instruccion = f"Eres un profesor experto. Si el usuario pide una historia, crea una historia interactiva sobre {prompt} con una decisión final. Si pide un quiz, haz 3 preguntas."
             response = model.generate_content(instruccion)
             full_response = response.text
