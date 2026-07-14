@@ -1,44 +1,47 @@
 import streamlit as st
 import google.generativeai as genai
-import os
 
-# Configuración de la página
-st.set_page_config(page_title="Chatbot de Ciencia", page_icon="🧪")
+st.set_page_config(page_title="Mentor Científico", page_icon="🎓")
 
-# Cargar la API KEY desde los Secrets
+# Configuración de la IA
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-pro')
 except Exception as e:
-    st.error("No se encontró la API KEY en los Secrets. Por favor revísalos.")
+    st.error("Error: Configura tu GEMINI_API_KEY en los Secrets.")
     st.stop()
 
-st.title("🧪 Chatbot de Ciencias Interactivas")
-st.write("Escribe un tema de ciencias y vive una aventura.")
+st.title("🎓 Mentor de Ciencias y Matemáticas")
+st.write("Dime qué quieres: una **historia interactiva** (Biología, Ciencias) o un **Quiz** (Mates, Física, Química).")
 
-# Inicializar historial
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Mostrar historial
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Input del usuario
-if prompt := st.chat_input("¿Qué tema científico quieres explorar?"):
+if prompt := st.chat_input("Ejemplo: 'Hazme un quiz de física' o 'Historia de biología'"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        instruccion = f"Eres un profesor de ciencias divertido. Crea una historia interactiva corta sobre: {prompt}. Presenta un conflicto científico y al final haz una pregunta de decisión para el usuario."
+        # Instrucción inteligente para diferenciar entre historia y quiz
+        instruccion = f"""
+        Actúa como un profesor experto. Si el usuario pide una historia, crea una historia interactiva 
+        sobre {prompt} con una decisión final. 
+        Si el usuario pide un quiz o examen, genera 3 preguntas de opción múltiple sobre {prompt}, 
+        espera a que el usuario responda, y luego corrige sus respuestas.
+        """
+        
         try:
             response = model.generate_content(instruccion)
             full_response = response.text
             st.markdown(full_response)
         except Exception as e:
-            st.error("Hubo un error al generar la respuesta. Revisa tu API KEY.")
+            full_response = "Error al generar el contenido. Intenta de nuevo."
+            st.error(full_response)
         
     st.session_state.messages.append({"role": "assistant", "content": full_response})
