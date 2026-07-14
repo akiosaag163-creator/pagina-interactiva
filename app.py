@@ -1,64 +1,49 @@
 import streamlit as st
 import google.generativeai as genai
+import time
 
 st.set_page_config(page_title="Mentor Estelar 🚀", page_icon="🎓")
-st.title("🎓 Mentor Estelar: Ciencias y Matemáticas")
+st.title("🎓 Mentor Estelar: Aprende y Juega")
 
-# Configuración API
-if "GEMINI_API_KEY" in st.secrets:
+# Configuración
+try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-3.5-flash')
-else:
-    st.error("Por favor configura tu GEMINI_API_KEY en los Secrets.")
+except:
+    st.error("Error de configuración.")
     st.stop()
 
-# Inicialización de estado
-if "chat_history" not in st.session_state: st.session_state.chat_history = []
-if "quiz_data" not in st.session_state: st.session_state.quiz_data = None
+if "history" not in st.session_state: st.session_state.history = []
 
-# Input del usuario
-prompt = st.chat_input("¿Qué quieres hoy? (Ej: 'Historia de la gravedad' o 'Quiz de álgebra')")
+# Mostrar chat
+for m in st.session_state.history:
+    with st.chat_message(m["role"]): st.markdown(m["content"])
 
-if prompt:
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
+# Input
+if prompt := st.chat_input("Pide un 'Quiz de...' o 'Historia de...'"):
+    st.session_state.history.append({"role": "user", "content": prompt})
+    with st.chat_message("user"): st.markdown(prompt)
     
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
     with st.chat_message("assistant"):
         with st.spinner('El mentor está preparando tu desafío...'):
-            if "quiz" in prompt.lower():
-                instruccion = f"""Eres un profesor de ciencias/mates. Crea una pregunta de quiz sobre {prompt}.
-                Formato obligatorio:
-                PREGUNTA: [La pregunta]
-                A) [Opción]
-                B) [Opción]
-                C) [Opción]
-                CORRECTA: [Letra]"""
-                response = model.generate_content(instruccion)
-                st.session_state.quiz_data = response.text
-                st.markdown(response.text.split("CORRECTA:")[0])
-            else:
-                instruccion = f"""Eres un narrador científico. Crea una historia interactiva corta sobre {prompt}.
-                Termina obligatoriamente con:
-                [Opción A] Final alternativo 1
-                [Opción B] Final alternativo 2"""
-                response = model.generate_content(instruccion)
-                st.markdown(response.text)
-                st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+            try:
+                # Instrucción directa
+                modo = "quiz de 3 preguntas con opciones A, B, C, D" if "quiz" in prompt.lower() else "historia interactiva con opciones [Opción A] y [Opción B]"
+                resp = model.generate_content(f"Crea un {modo} sobre {prompt}")
+                texto = resp.text
+                st.markdown(texto)
+                st.session_state.history.append({"role": "assistant", "content": texto})
+                
+                # Renderizar botones basados en lo que devolvió la IA
+                if "[Opción A]" in texto or "Opción A" in texto:
+                    col1, col2 = st.columns(2)
+                    if col1.button("Elegir Opción A"): st.success("Elegiste A. El mentor continuará la historia...")
+                    if col2.button("Elegir Opción B"): st.success("Elegiste B. El mentor continuará la historia...")
+                
+                elif "A)" in texto or "A." in texto:
+                    opcion = st.radio("Selecciona tu respuesta:", ["A", "B", "C", "D"], key="quiz_sel")
+                    if st.button("Verificar respuesta"):
+                        st.info(f"Has seleccionado {opcion}. (El mentor evaluará tu elección en el próximo mensaje).")
 
-# Lógica de resolución (Botones)
-if st.session_state.quiz_data:
-    st.markdown("---")
-    opcion = st.radio("Elige tu respuesta:", ["A", "B", "C"], key="r")
-    if st.button("Verificar Quiz"):
-        correcta = st.session_state.quiz_data.split("CORRECTA:")[1].strip()[0]
-        if opcion == correcta:
-            st.success("¡Excelente, correcto! 🎉")
-        else:
-            st.error(f"Incorrecto. La respuesta era {correcta}.")
-
-if any("[Opción A]" in msg.get("content", "") for msg in st.session_state.chat_history):
-    col1, col2 = st.columns(2)
-    if col1.button("Elegir Opción A"): st.info("Has cambiado el destino de la historia...")
-    if col2.button("Elegir Opción B"): st.info("La historia ha tomado otro camino...")
+            except Exception as e:
+                st.warning("El mentor está tomando un breve descanso. Por favor, espera 30 segundos y vuelve a intentar.")
