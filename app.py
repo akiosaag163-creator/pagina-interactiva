@@ -1,66 +1,53 @@
 import streamlit as st
 import google.generativeai as genai
-import random
 
-st.set_page_config(page_title="Mentor Estelar 🚀", page_icon="🎓", layout="wide")
-
-# Estilos CSS para hacerlo más "llamativo"
-st.markdown("""
-    <style>
-    .stApp { background: linear-gradient(to right, #f0f2f6, #e1f5fe); }
-    .css-1r6slb0 { font-weight: bold; color: #1e88e5; }
-    </style>
-    """, unsafe_allow_html=True)
+st.set_page_config(page_title="Mentor Estelar 🚀", page_icon="🎓", layout="centered")
 
 st.title("🎓 ¡Bienvenido a Mentor Estelar! 🚀")
-st.subheader("Tu guía inteligente hacia el conocimiento infinito")
 
-api_key = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-3.5-flash')
+# Configuración de la API
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-3.5-flash')
+except Exception as e:
+    st.error("Configuración de API no encontrada. Revisa tus Secrets.")
+    st.stop()
 
+# Inicializar estados
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.xp = 0 # Nivel de experiencia
 
-# Sidebar para motivación
-with st.sidebar:
-    st.header("🌟 Tu Progreso")
-    st.progress(min(st.session_state.xp / 100, 1.0))
-    st.write(f"Nivel actual: **{int(st.session_state.xp/10)}**")
-    st.info("¡Cada pregunta te hace más sabio! Sigue aprendiendo.")
-
-# Interfaz principal
+# Mostrar historial de mensajes
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        if "image_url" in message:
-            st.image(message["image_url"], use_container_width=True)
 
-if prompt := st.chat_input("¿Qué maravilla científica quieres descubrir hoy?"):
-    st.session_state.xp += 10 # Ganar XP por preguntar
+# Input del usuario
+if prompt := st.chat_input("¿Qué quieres aprender hoy? (ej: 'Historia de la fotosíntesis' o 'Quiz de biología')"):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner('El mentor está procesando tu sabiduría...'):
-            instruccion = f"""Eres un mentor científico entusiasta y motivador. 
-            Crea una explicación breve o historia sobre: {prompt}.
-            Incluye al final una pregunta para que el usuario demuestre lo aprendido.
-            IMPORTANTE: Termina tu respuesta con 'IMAGE_URL: https://source.unsplash.com/800x400/?{prompt.replace(' ', '+')}'"""
+        with st.spinner('El mentor está preparando tu lección...'):
+            # Lógica diferenciada por tipo de solicitud
+            if "quiz" in prompt.lower():
+                instruccion = f"Eres un profesor experto. Haz 3 preguntas de evaluación directa (sin opciones) sobre: {prompt}. No incluyas historias, solo las preguntas."
+            else:
+                instruccion = f"""Eres un profesor experto. Crea una historia interactiva sobre {prompt}. 
+                Al final, presenta dos opciones claras etiquetadas como:
+                [Opción A] y [Opción B]."""
             
             response = model.generate_content(instruccion)
             full_text = response.text
+            st.markdown(full_text)
+            st.session_state.messages.append({"role": "assistant", "content": full_text})
             
-            # Limpiar imagen
-            text_content = full_text.split("IMAGE_URL:")[0]
-            image_url = full_text.split("IMAGE_URL:")[1].strip() if "IMAGE_URL:" in full_text else None
-            
-            st.markdown(text_content)
-            if image_url:
-                st.image(image_url, caption="Tu ilustración científica", use_container_width=True)
-            
-            st.session_state.messages.append({"role": "assistant", "content": text_content, "image_url": image_url})
-            st.rerun() # Recargar para actualizar la barra de progreso
+            # Botones para historias interactivas
+            if "historia" in prompt.lower() or ("Opción A" in full_text and "Opción B" in full_text):
+                col1, col2 = st.columns(2)
+                if col1.button("Elegir Opción A"):
+                    st.write("Has elegido la Opción A. ¡El mentor procesará tu elección en la siguiente pregunta!")
+                if col2.button("Elegir Opción B"):
+                    st.write("Has elegido la Opción B. ¡El mentor procesará tu elección en la siguiente pregunta!")
