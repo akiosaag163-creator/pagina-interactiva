@@ -4,22 +4,12 @@ import google.generativeai as genai
 st.set_page_config(page_title="Mentor Científico", page_icon="🎓")
 st.title("🎓 Mentor de Ciencias y Matemáticas")
 
-# Función para encontrar un modelo que funcione
-def get_model():
-    # Listar modelos disponibles
-    models = genai.list_models()
-    for m in models:
-        if 'generateContent' in m.supported_generation_methods:
-            return genai.GenerativeModel(m.name)
-    return None
-
+# Configuración usando el modelo que SÍ tienes disponible
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
-    model = get_model()
-    if model is None:
-        st.error("No se encontró ningún modelo compatible en tu cuenta.")
-        st.stop()
+    # USAMOS EL MODELO QUE APARECE EN TU CAPTURA: gemini-3.5-flash
+    model = genai.GenerativeModel('gemini-3.5-flash')
 except Exception as e:
     st.error(f"Error de configuración: {e}")
     st.stop()
