@@ -1,15 +1,21 @@
+
 import streamlit as st
 import google.generativeai as genai
 
 st.set_page_config(page_title="Mentor Científico", page_icon="🎓")
 st.title("🎓 Mentor de Ciencias y Matemáticas")
 
+# Configurar la IA buscando el modelo disponible
 try:
-    # Configuración con el modelo nuevo y correcto
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
-    # USAMOS GEMINI-1.5-FLASH
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Esta parte busca un modelo que funcione en tu cuenta
+    models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+    # Intentamos usar 'gemini-1.5-flash' o el primero que aparezca en la lista
+    model_name = 'models/gemini-1.5-flash' if 'models/gemini-1.5-flash' in models else models[0]
+    model = genai.GenerativeModel(model_name)
+    
 except Exception as e:
     st.error(f"Error de configuración: {e}")
     st.stop()
@@ -28,7 +34,7 @@ if prompt := st.chat_input("Escribe tu tema:"):
 
     with st.chat_message("assistant"):
         try:
-            instruccion = f"Eres un profesor experto. Crea una historia interactiva sobre {prompt} o un quiz de 3 preguntas si el usuario lo pide."
+            instruccion = f"Eres un profesor experto. Si el usuario pide una historia, crea una historia interactiva sobre {prompt} con una decisión final. Si pide un quiz, haz 3 preguntas."
             response = model.generate_content(instruccion)
             full_response = response.text
             st.markdown(full_response)
